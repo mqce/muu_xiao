@@ -22,12 +22,14 @@ Adafruit_MLX90614 mlx2 = Adafruit_MLX90614(0x55);  // I2Cアドレス書き換�
 #define HALL_L 7
 */
 const unsigned char HALL_PINS[] = {6, 7};
-const unsigned int MOTOR_SPEED_NORMAL = 200;
-const unsigned int MOTOR_SPEED_SLOW = 100;
+const int MOTOR_SPEED = 200;
 
 unsigned long t = 0;
+unsigned long reachedTimeZeroDeg[] = {0, 0};
+unsigned long motorSlowedTime[] = {0, 0};
 
 int getOtherSide(unsigned char side) { return side == R ? L : R; }
+
 void led(bool on) {
   int v = on ? LOW : HIGH;  // HIGHがOFF
   digitalWrite(LED_BUILTIN, v);
@@ -54,10 +56,7 @@ bool isHallActive(unsigned char side) {
   return active;
 }
 
-unsigned long reachedTimeZeroDeg[] = {0, 0};
-unsigned long motorSlowedTime[] = {0, 0};
-
-void adjustSpeed(int side) {
+void adjustSpeed(int side, int motorSpeed, bool isBack = false) {
   unsigned long lastTime = reachedTimeZeroDeg[side];
   unsigned long time = millis();
   reachedTimeZeroDeg[side] = time;
@@ -83,13 +82,25 @@ void adjustSpeed(int side) {
 
     // 逆側が半分も進んでいない場合こっちを遅くする
     unsigned int timeThreshold = 50;  // 位相差πに近い場合はslowしない
-    if (rotateTime / 2 + timeThreshold > currentTimeOther) {
-      Motor::start(side, MOTOR_SPEED_SLOW);
-      motorSlowedTime[side] = millis();
-    } else if (rotateTime / 2 < currentTimeOther + timeThreshold) {
-      Motor::start(otherSide, MOTOR_SPEED_SLOW);
-      motorSlowedTime[otherSide] = millis();
+    if (!isBack) {
+      if (rotateTime / 2 + timeThreshold > currentTimeOther) {
+        Motor::start(side, motorSpeed * 0.5);
+        motorSlowedTime[side] = millis();
+      } else if (rotateTime / 2 < currentTimeOther + timeThreshold) {
+        Motor::start(otherSide, motorSpeed * 0.5);
+        motorSlowedTime[otherSide] = millis();
+      }
+    } else {
+      // 後進中は逆の判定
+      if (rotateTime / 2 < currentTimeOther + timeThreshold) {
+        Motor::start(side, motorSpeed * 0.5);
+        motorSlowedTime[side] = millis();
+      } else if (rotateTime / 2 + timeThreshold > currentTimeOther) {
+        Motor::start(otherSide, motorSpeed * 0.5);
+        motorSlowedTime[otherSide] = millis();
+      }
     }
+
     /*
     if(side == R){
       Serial.print(time);
@@ -99,15 +110,15 @@ void adjustSpeed(int side) {
     */
   }
 }
-void walk(unsigned int steps) {
+void walk(int motorSpeeds[2], unsigned int steps, bool isBack = false) {
   unsigned int reachedCountZeroDeg[] = {0, 0};
 
   // 計測時間をリセット
   reachedTimeZeroDeg[R] = 0;
   reachedTimeZeroDeg[L] = 0;
 
-  Motor::start(R, MOTOR_SPEED_NORMAL);
-  Motor::start(L, MOTOR_SPEED_NORMAL);
+  Motor::start(R, motorSpeeds[R]);
+  Motor::start(L, motorSpeeds[L]);
 
   unsigned long hallWasActive[] = {false, false};
 
@@ -118,14 +129,14 @@ void walk(unsigned int steps) {
       if (millis() - motorSlowedTime[side] > 200) {
         // Serial.print(side);
         // Serial.println(" normal");
-        Motor::start(side, MOTOR_SPEED_NORMAL);
+        Motor::start(side, motorSpeeds[side]);
       }
 
       // ホールセンサに反応したら速度調整へ
       bool hallActive = isHallActive(side);
       if (!hallWasActive[side] && hallActive) {
         reachedCountZeroDeg[side] += 1;
-        adjustSpeed(side);
+        adjustSpeed(side, motorSpeeds[side], isBack);
       }
       hallWasActive[side] = hallActive;
     }
@@ -139,15 +150,44 @@ void walk(unsigned int steps) {
   }
 }
 
-void turn() {}
+void foward(unsigned int steps) {
+  int motorSpeeds[] = {MOTOR_SPEED, MOTOR_SPEED};
+  walk(motorSpeeds, steps, false);
+}
+
+void backward(unsigned int steps) {
+  int motorSpeeds[] = {-1 * MOTOR_SPEED, -1 * MOTOR_SPEED};
+  walk(motorSpeeds, steps, false);
+}
+
+void turn(unsigned int side, unsigned int steps) {
+  int speedR = side == R ? MOTOR_SPEED : -1 * MOTOR_SPEED;
+  int speedL = -1 * speedR;
+  int motorSpeeds[] = {speedR, speedL};
+  walk(motorSpeeds, steps, true);
+}
 
 void stop() {
-  Motor::stop(R);
-  Motor::stop(L);
+  int sides[] = {R, L};
+  for (int side : sides) {
+    Motor::stop(side);
+  }
 }
 
 void loop() {
-  walk(4);
+  foward(8);
+  stop();
+  delay(1000);
+
+  backward(8);
+  stop();
+  delay(1000);
+
+  turn(R, 8);
+  stop();
+  delay(1000);
+
+  turn(L, 8);
   stop();
   delay(1000);
 }
