@@ -22,7 +22,7 @@ Adafruit_MLX90614 mlx2 = Adafruit_MLX90614(0x55);  // I2Cアドレス書き換�
 #define HALL_L 7
 */
 const unsigned char HALL_PINS[] = {6, 7};
-const int MOTOR_SPEED = 200;
+const float MOTOR_SPEED = 250;
 
 unsigned long t = 0;
 unsigned long reachedTimeZeroDeg[] = {0, 0};
@@ -84,19 +84,19 @@ void adjustSpeed(int side, int motorSpeed, bool isBack = false) {
     unsigned int timeThreshold = 50;  // 位相差πに近い場合はslowしない
     if (!isBack) {
       if (rotateTime / 2 + timeThreshold > currentTimeOther) {
-        Motor::start(side, motorSpeed * 0.5);
+        Motor::start(side, motorSpeed*0.8);
         motorSlowedTime[side] = millis();
       } else if (rotateTime / 2 < currentTimeOther + timeThreshold) {
-        Motor::start(otherSide, motorSpeed * 0.5);
+        Motor::start(otherSide, motorSpeed*0.8);
         motorSlowedTime[otherSide] = millis();
       }
     } else {
       // 後進中は逆の判定
       if (rotateTime / 2 < currentTimeOther + timeThreshold) {
-        Motor::start(side, motorSpeed * 0.5);
+        Motor::start(side, motorSpeed*0.8);
         motorSlowedTime[side] = millis();
       } else if (rotateTime / 2 + timeThreshold > currentTimeOther) {
-        Motor::start(otherSide, motorSpeed * 0.5);
+        Motor::start(otherSide, motorSpeed*0.8);
         motorSlowedTime[otherSide] = millis();
       }
     }
@@ -110,8 +110,9 @@ void adjustSpeed(int side, int motorSpeed, bool isBack = false) {
     */
   }
 }
-void walk(int motorSpeeds[2], unsigned int steps, bool isBack = false) {
+void walk(float motorSpeeds[2], unsigned int steps, bool isBack = false) {
   unsigned int reachedCountZeroDeg[] = {0, 0};
+  bool hallWasActive[] = {false, false};
 
   // 計測時間をリセット
   reachedTimeZeroDeg[R] = 0;
@@ -120,13 +121,11 @@ void walk(int motorSpeeds[2], unsigned int steps, bool isBack = false) {
   Motor::start(R, motorSpeeds[R]);
   Motor::start(L, motorSpeeds[L]);
 
-  unsigned long hallWasActive[] = {false, false};
-
   while (true) {
     int sides[] = {R, L};
     for (int side : sides) {
       // slowしてから一定時間たっていたら元のスピードに戻す
-      if (millis() - motorSlowedTime[side] > 200) {
+      if (millis() - motorSlowedTime[side] > 300) {
         // Serial.print(side);
         // Serial.println(" normal");
         Motor::start(side, motorSpeeds[side]);
@@ -151,19 +150,19 @@ void walk(int motorSpeeds[2], unsigned int steps, bool isBack = false) {
 }
 
 void foward(unsigned int steps) {
-  int motorSpeeds[] = {MOTOR_SPEED, MOTOR_SPEED};
+  float motorSpeeds[] = {MOTOR_SPEED, MOTOR_SPEED};
   walk(motorSpeeds, steps, false);
 }
 
 void backward(unsigned int steps) {
-  int motorSpeeds[] = {-1 * MOTOR_SPEED, -1 * MOTOR_SPEED};
+  float motorSpeeds[] = {-1 * MOTOR_SPEED, -1 * MOTOR_SPEED};
   walk(motorSpeeds, steps, false);
 }
 
 void turn(unsigned int side, unsigned int steps) {
-  int speedR = side == R ? MOTOR_SPEED : -1 * MOTOR_SPEED;
-  int speedL = -1 * speedR;
-  int motorSpeeds[] = {speedR, speedL};
+  float speedR = side == R ? MOTOR_SPEED : -1 * MOTOR_SPEED;
+  float speedL = -1 * speedR;
+  float motorSpeeds[] = {speedR, speedL};
   walk(motorSpeeds, steps, true);
 }
 
@@ -174,7 +173,89 @@ void stop() {
   }
 }
 
+void speedTest(unsigned char side, int speed, unsigned int steps) {
+  Serial.println("");
+  Serial.print(side == 0 ? "R" : "L");
+  Serial.println(speed);
+
+  unsigned long reachedTimeZeroDegTest = 0;
+  unsigned int reachedCountZeroDeg = 0;
+  bool hallWasActive = false;
+
+  Motor::start(side, speed);
+
+  while (true) {
+    // ホールセンサに反応したら速度調整へ
+    bool hallActive = isHallActive(side);
+    if (!hallWasActive && hallActive) {
+      reachedCountZeroDeg += 1;
+
+      // 1周にかかった時間を出力
+      unsigned long lastTime = reachedTimeZeroDegTest;
+      unsigned long time = millis();
+
+      Serial.print(side);
+      Serial.print(" ");
+      Serial.println(time - lastTime);
+      reachedTimeZeroDegTest = time;
+    }
+    hallWasActive = hallActive;
+
+    // steps歩歩いたらbreak
+    if (reachedCountZeroDeg > steps) {
+      reachedCountZeroDeg = 0;
+      break;
+    }
+  }
+  stop();
+}
+
 void loop() {
+  // delay(5000);
+/*
+  speedTest(R, 250, 4);
+  speedTest(R, -250, 4);
+  speedTest(L, 250, 4);
+  speedTest(L, -250, 4);
+  speedTest(R, 200, 4);
+  speedTest(R, -200, 4);
+  speedTest(L, 200, 4);
+  speedTest(L, -200, 4);
+
+    speedTest(L, 250, 4);
+    speedTest(L, 240, 4);
+    speedTest(L, 230, 4);
+    speedTest(L, 220, 4);
+    speedTest(L, 210, 4);
+    speedTest(L, 200, 4);
+
+    speedTest(L, -250, 4);
+    speedTest(L, -240, 4);
+    speedTest(L, -230, 4);
+    speedTest(L, -220, 4);
+    speedTest(L, -210, 4);
+    speedTest(L, -200, 4);
+
+    speedTest(L, -190, 4);
+    speedTest(L, -180, 4);
+    speedTest(L, -170, 4);
+    speedTest(L, -160, 4);
+
+    speedTest(L, -150, 4);
+    speedTest(L, -140, 4);
+    speedTest(L, -130, 4);
+    speedTest(L, -120, 4);
+    speedTest(L, -110, 4);
+    speedTest(L, -100, 4);
+
+    speedTest(L, -90, 4);
+    speedTest(L, -80, 4);
+    speedTest(L, -70, 4);
+    speedTest(L, -60, 4);
+    speedTest(L, -50, 4);
+    */
+
+  
   foward(8);
   stop();
   delay(1000);
@@ -190,4 +271,5 @@ void loop() {
   turn(L, 8);
   stop();
   delay(1000);
+  
 }
