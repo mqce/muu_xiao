@@ -84,19 +84,19 @@ void adjustSpeed(int side, int motorSpeed, bool isBack = false) {
     unsigned int timeThreshold = 50;  // 位相差πに近い場合はslowしない
     if (!isBack) {
       if (rotateTime / 2 + timeThreshold > currentTimeOther) {
-        Motor::start(side, motorSpeed*0.8);
+        Motor::start(side, motorSpeed * 0.8);
         motorSlowedTime[side] = millis();
       } else if (rotateTime / 2 < currentTimeOther + timeThreshold) {
-        Motor::start(otherSide, motorSpeed*0.8);
+        Motor::start(otherSide, motorSpeed * 0.8);
         motorSlowedTime[otherSide] = millis();
       }
     } else {
       // 後進中は逆の判定
       if (rotateTime / 2 < currentTimeOther + timeThreshold) {
-        Motor::start(side, motorSpeed*0.8);
+        Motor::start(side, motorSpeed * 0.8);
         motorSlowedTime[side] = millis();
       } else if (rotateTime / 2 + timeThreshold > currentTimeOther) {
-        Motor::start(otherSide, motorSpeed*0.8);
+        Motor::start(otherSide, motorSpeed * 0.8);
         motorSlowedTime[otherSide] = millis();
       }
     }
@@ -210,9 +210,9 @@ void speedTest(unsigned char side, int speed, unsigned int steps) {
   stop();
 }
 
-void loop() {
-  // delay(5000);
-/*
+void speedTests() {
+  delay(5000);
+
   speedTest(R, 250, 4);
   speedTest(R, -250, 4);
   speedTest(L, 250, 4);
@@ -222,40 +222,40 @@ void loop() {
   speedTest(L, 200, 4);
   speedTest(L, -200, 4);
 
-    speedTest(L, 250, 4);
-    speedTest(L, 240, 4);
-    speedTest(L, 230, 4);
-    speedTest(L, 220, 4);
-    speedTest(L, 210, 4);
-    speedTest(L, 200, 4);
+  speedTest(L, 250, 4);
+  speedTest(L, 240, 4);
+  speedTest(L, 230, 4);
+  speedTest(L, 220, 4);
+  speedTest(L, 210, 4);
+  speedTest(L, 200, 4);
 
-    speedTest(L, -250, 4);
-    speedTest(L, -240, 4);
-    speedTest(L, -230, 4);
-    speedTest(L, -220, 4);
-    speedTest(L, -210, 4);
-    speedTest(L, -200, 4);
+  speedTest(L, -250, 4);
+  speedTest(L, -240, 4);
+  speedTest(L, -230, 4);
+  speedTest(L, -220, 4);
+  speedTest(L, -210, 4);
+  speedTest(L, -200, 4);
 
-    speedTest(L, -190, 4);
-    speedTest(L, -180, 4);
-    speedTest(L, -170, 4);
-    speedTest(L, -160, 4);
+  speedTest(L, -190, 4);
+  speedTest(L, -180, 4);
+  speedTest(L, -170, 4);
+  speedTest(L, -160, 4);
 
-    speedTest(L, -150, 4);
-    speedTest(L, -140, 4);
-    speedTest(L, -130, 4);
-    speedTest(L, -120, 4);
-    speedTest(L, -110, 4);
-    speedTest(L, -100, 4);
+  speedTest(L, -150, 4);
+  speedTest(L, -140, 4);
+  speedTest(L, -130, 4);
+  speedTest(L, -120, 4);
+  speedTest(L, -110, 4);
+  speedTest(L, -100, 4);
 
-    speedTest(L, -90, 4);
-    speedTest(L, -80, 4);
-    speedTest(L, -70, 4);
-    speedTest(L, -60, 4);
-    speedTest(L, -50, 4);
-    */
+  speedTest(L, -90, 4);
+  speedTest(L, -80, 4);
+  speedTest(L, -70, 4);
+  speedTest(L, -60, 4);
+  speedTest(L, -50, 4);
+}
 
-  
+void loop() {
   foward(8);
   stop();
   delay(1000);
@@ -271,5 +271,4 @@ void loop() {
   turn(L, 8);
   stop();
   delay(1000);
-  
 }
